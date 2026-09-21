@@ -11,6 +11,7 @@ import {
 import { logActivity, logAudit } from "@/lib/data/activities";
 import { createTopic } from "@/lib/data/topics";
 import { draftContentFields, type DraftResult } from "@/lib/ai/draft";
+import { scoreContent } from "@/lib/ai/score";
 import type {
   ContentPieceInput,
   ContentFormat,
@@ -79,6 +80,7 @@ export async function createPieceAction(
 ): Promise<ActionResult> {
   const input = parsePieceInput(formData);
   if (!input.title) return { ok: false, error: "Title is required." };
+  input.score = scoreContent(input);
 
   let pieceId: string;
   try {
@@ -90,6 +92,7 @@ export async function createPieceAction(
       `Created "${piece.title}" as ${piece.status}`,
     );
     await logAudit("create", "content_pieces", piece.id, `status=${piece.status}`);
+    await logActivity(piece.id, "scored", `score=${piece.score}`);
     if (piece.status === "published") {
       await logActivity(piece.id, "published", null);
     }
@@ -111,11 +114,13 @@ export async function updatePieceAction(
 ): Promise<ActionResult> {
   const input = parsePieceInput(formData);
   if (!input.title) return { ok: false, error: "Title is required." };
+  input.score = scoreContent(input);
 
   try {
     const piece = await updateContentPiece(id, input);
     await logActivity(piece.id, "edited", "Fields updated");
     await logAudit("edit", "content_pieces", piece.id, `status=${piece.status}`);
+    await logActivity(piece.id, "scored", `score=${piece.score}`);
   } catch (err) {
     return {
       ok: false,
@@ -147,9 +152,12 @@ export async function publishPieceAction(
   id: string,
   _formData: FormData,
 ): Promise<void> {
-  const piece = await updateContentPiece(id, { status: "published" });
+  const existing = await getContentPiece(id);
+  const score = existing ? scoreContent(existing) : undefined;
+  const piece = await updateContentPiece(id, { status: "published", score });
   await logActivity(id, "published", null);
   await logAudit("publish", "content_pieces", piece.id, null);
+  await logActivity(id, "scored", `score=${piece.score}`);
   revalidatePath("/");
 }
 

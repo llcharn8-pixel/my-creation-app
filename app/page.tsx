@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getContentPieces } from "@/lib/data/content";
 import { getTopics } from "@/lib/data/topics";
 import { LibraryTable } from "@/components/library-table";
+import { TopPieces } from "@/components/top-pieces";
 
 type SearchParams = { status?: string; topic?: string; q?: string };
 
@@ -11,9 +12,10 @@ export default async function LibraryPage({
   searchParams: Promise<SearchParams>;
 }) {
   const { status, topic, q } = await searchParams;
-  const [pieces, topics] = await Promise.all([
+  const [pieces, topics, allPieces] = await Promise.all([
     getContentPieces({ status, topicId: topic, search: q }),
     getTopics(),
+    getContentPieces(),
   ]);
 
   const hasFilters = Boolean(status || topic || q);
@@ -34,6 +36,8 @@ export default async function LibraryPage({
           New piece
         </Link>
       </div>
+
+      <TopPieces pieces={allPieces.slice(0, 3)} />
 
       <form action="/" method="get" className="flex flex-wrap items-end gap-3">
         <div>
