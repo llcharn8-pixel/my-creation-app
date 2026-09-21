@@ -10,6 +10,7 @@ import {
 } from "@/lib/data/content";
 import { logActivity, logAudit } from "@/lib/data/activities";
 import { createTopic } from "@/lib/data/topics";
+import { draftContentFields, type DraftResult } from "@/lib/ai/draft";
 import type {
   ContentPieceInput,
   ContentFormat,
@@ -24,6 +25,10 @@ function parsePieceInput(formData: FormData): ContentPieceInput {
   const status = (formData.get("status") as ContentStatus) || "draft";
   const asSource = (v: FormDataEntryValue | null): FieldSource | null =>
     v === "ai" || v === "user" ? v : null;
+  const asConfidence = (v: FormDataEntryValue | null): number | null => {
+    const n = Number(v);
+    return v && !Number.isNaN(n) ? n : null;
+  };
 
   return {
     title: String(formData.get("title") ?? "").trim(),
@@ -39,10 +44,33 @@ function parsePieceInput(formData: FormData): ContentPieceInput {
     hook_source: asSource(formData.get("hook_source")),
     body_source: asSource(formData.get("body_source")),
     cta_source: asSource(formData.get("cta_source")),
+    hook_confidence: asConfidence(formData.get("hook_confidence")),
+    body_confidence: asConfidence(formData.get("body_confidence")),
+    cta_confidence: asConfidence(formData.get("cta_confidence")),
     review_status:
       (formData.get("review_status") as "unreviewed" | "reviewed") ||
       "unreviewed",
   };
+}
+
+export type DraftFieldsResult =
+  | { ok: true; draft: DraftResult }
+  | { ok: false; error: string };
+
+export async function draftFieldsAction(input: {
+  breakthroughAngle: string;
+  format: ContentFormat;
+  audience: string;
+}): Promise<DraftFieldsResult> {
+  try {
+    const draft = draftContentFields(input);
+    return { ok: true, draft };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not draft fields.",
+    };
+  }
 }
 
 export async function createPieceAction(
