@@ -1,5 +1,6 @@
 import type { ContentPiece } from "@/lib/types";
 import { AdminDeleteButton } from "@/components/admin-delete-button";
+import { AdminClaimButton } from "@/components/admin-claim-button";
 
 export function AdminTable({ pieces }: { pieces: ContentPiece[] }) {
   if (pieces.length === 0) {
@@ -36,7 +37,10 @@ export function AdminTable({ pieces }: { pieces: ContentPiece[] }) {
               <td className="px-4 py-2 text-neutral-600">{piece.status}</td>
               <td className="px-4 py-2 text-neutral-600">{piece.score ?? 0}</td>
               <td className="px-4 py-2 text-right">
-                <AdminDeleteButton id={piece.id} title={piece.title} />
+                <div className="flex items-center justify-end gap-3">
+                  {!piece.user_id && <AdminClaimButton id={piece.id} />}
+                  <AdminDeleteButton id={piece.id} title={piece.title} />
+                </div>
               </td>
             </tr>
           ))}
