@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { NavShell } from "@/components/nav-shell";
 
 export const metadata: Metadata = {
   title: "Content Studio",
@@ -14,9 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased text-neutral-900">
-        <NavShell>{children}</NavShell>
-      </body>
+      <body className="antialiased text-neutral-900">{children}</body>
     </html>
   );
 }

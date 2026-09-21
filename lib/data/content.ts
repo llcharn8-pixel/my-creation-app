@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserId } from "@/lib/auth";
 import type { ContentPiece, ContentPieceInput } from "@/lib/types";
 
 export type ContentFilters = {
@@ -44,9 +45,10 @@ export async function createContentPiece(
   input: ContentPieceInput,
 ): Promise<ContentPiece> {
   const supabase = await createClient();
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from("content_pieces")
-    .insert(input)
+    .insert({ ...input, user_id: userId })
     .select()
     .single();
 

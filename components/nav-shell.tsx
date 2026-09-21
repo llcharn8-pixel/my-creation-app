@@ -3,15 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { SignOutButton } from "@/components/sign-out-button";
 
-const links = [
+const baseLinks = [
   { href: "/", label: "Library" },
   { href: "/new", label: "New piece" },
   { href: "/topics", label: "Topics" },
 ];
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({
+  onNavigate,
+  isAdmin,
+}: {
+  onNavigate?: () => void;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
+  const links = isAdmin
+    ? [...baseLinks, { href: "/admin", label: "Admin" }]
+    : baseLinks;
   return (
     <nav className="flex flex-col gap-1">
       {links.map((link) => {
@@ -37,7 +47,15 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function NavShell({ children }: { children: React.ReactNode }) {
+export function NavShell({
+  children,
+  userEmail,
+  isAdmin,
+}: {
+  children: React.ReactNode;
+  userEmail?: string | null;
+  isAdmin?: boolean;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -56,14 +74,26 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {mobileOpen && (
-        <div className="border-b border-neutral-200 px-4 py-3 md:hidden">
-          <NavLinks onNavigate={() => setMobileOpen(false)} />
+        <div className="space-y-3 border-b border-neutral-200 px-4 py-3 md:hidden">
+          <NavLinks onNavigate={() => setMobileOpen(false)} isAdmin={isAdmin} />
+          {userEmail && (
+            <div className="flex items-center justify-between border-t border-neutral-200 pt-3 text-sm text-neutral-500">
+              <span className="truncate">{userEmail}</span>
+              <SignOutButton />
+            </div>
+          )}
         </div>
       )}
 
-      <aside className="hidden w-56 shrink-0 border-r border-neutral-200 px-4 py-6 md:block">
+      <aside className="hidden w-56 shrink-0 flex-col border-r border-neutral-200 px-4 py-6 md:flex">
         <div className="mb-6 text-lg font-bold tracking-tight">Content Studio</div>
-        <NavLinks />
+        <NavLinks isAdmin={isAdmin} />
+        {userEmail && (
+          <div className="mt-auto space-y-2 border-t border-neutral-200 pt-4">
+            <p className="truncate text-xs text-neutral-500">{userEmail}</p>
+            <SignOutButton />
+          </div>
+        )}
       </aside>
 
       <main className="min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>
