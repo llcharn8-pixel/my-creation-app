@@ -1,6 +1,11 @@
-# vibe-stack-supabase
+# Content Studio
 
-Next.js 15 + Supabase starter for shipping vibe-coded apps fast. Clone, provision, build.
+A fast content creation studio for creators and entrepreneurs to draft
+breakthrough-and-transformation content across topics, formats, and media —
+create, AI-assist, score, publish, all without a login wall.
+
+See [docs/PRD.md](docs/PRD.md) for the product brief and
+[docs/TASKS.md](docs/TASKS.md) for the sprint plan.
 
 ## Stack
 
@@ -9,33 +14,34 @@ Next.js 15 + Supabase starter for shipping vibe-coded apps fast. Clone, provisio
 | Framework | Next.js 15 (App Router, React 19, Server Actions) |
 | Language | TypeScript strict |
 | Styles | Tailwind CSS v4 (CSS-first, no config file) |
-| Auth + DB | Supabase (`@supabase/ssr`) |
-| Package manager | Bun |
-| Deploy | Vercel |
+| Database | Supabase Postgres (`@supabase/ssr`), demo-first permissive RLS |
+| Deploy | Vercel (auto-deploys `main` via connected GitHub repo) |
+
+## What's built (v1)
+
+- **Studio form** — topic, format, media, audience, breakthrough angle, hook,
+  body, CTA. Save as draft or publish.
+- **Library** — filter by status/topic, search by title, edit, delete, empty
+  /loading/error states.
+- **AI drafting assist** — "Draft with AI" fills hook/body/CTA from the
+  breakthrough angle (self-contained heuristic, no external API key needed);
+  editing a drafted field marks it reviewed.
+- **Scoring** — rule-based 0–100 score recomputed on save/publish; library
+  sorted by score, with a "Top 3" panel.
 
 ## Quick start
 
 ```bash
-bun install
+npm install
 cp .env.example .env.local   # fill in your Supabase keys
-bun dev
+npm run dev
 ```
 
-Open http://localhost:3000. Edit `app/page.tsx` to start building.
+Open http://localhost:3000 — the homepage is the working library, no login
+required.
 
-## Provisioning a new project
+## Database
 
-Use the `/new-vibe-project <name>` skill (see `claude-dotfiles` repo) which:
-1. Clones this template and renames it
-2. Creates a new GitHub repo and pushes
-3. Creates a Supabase project and injects URL + anon key
-4. Creates a Vercel project linked to the GitHub repo
-5. Triggers first deploy and returns the preview URL
-
-## Working with AI
-
-See [CLAUDE.md](CLAUDE.md) for conventions. This repo is pre-wired for gstack — start with `/office-hours`.
-
-## Switching to Neon
-
-If you need Postgres without Supabase (e.g. prefer Drizzle ORM + Clerk for auth), a `vibe-stack-neon` variant is planned. For now: fork this and swap `@supabase/ssr` for `drizzle-orm` + `@neondatabase/serverless`, add Clerk or NextAuth.
+Schema + demo seed data live in `supabase/migrations/`. Apply them in order
+via the Supabase SQL Editor (or `supabase db push`). Never edit an already-
+applied migration file — add a new one instead.
