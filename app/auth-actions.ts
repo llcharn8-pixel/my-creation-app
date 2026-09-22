@@ -61,3 +61,26 @@ export async function signOutAction(): Promise<void> {
   revalidatePath("/");
   redirect("/login");
 }
+
+export type ForgotPasswordResult =
+  | { ok: true; submitted?: boolean }
+  | { ok: false; error: string };
+
+export async function requestPasswordResetAction(
+  _prevState: ForgotPasswordResult,
+  formData: FormData,
+): Promise<ForgotPasswordResult> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { ok: false, error: "Email is required." };
+
+  const supabase = await createClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${appUrl}/reset-password`,
+  });
+  // Supabase doesn't reveal whether the email exists (avoids enumeration),
+  // so an error here is something else going wrong (rate limit, etc.).
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true, submitted: true };
+}

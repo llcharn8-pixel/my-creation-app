@@ -40,10 +40,18 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     const pathname = request.nextUrl.pathname;
-    const isAuthPage = pathname === "/login" || pathname === "/signup";
+    const isAuthPage =
+      pathname === "/login" ||
+      pathname === "/signup" ||
+      pathname === "/forgot-password";
+    // The recovery session is established client-side (Supabase's default
+    // reset-password email puts the tokens in the URL fragment, which never
+    // reaches this middleware), so this page must always be reachable and
+    // must never be bounced away even if a stale session cookie exists.
+    const isResetPasswordPage = pathname === "/reset-password";
     const isApiRoute = pathname.startsWith("/api/");
 
-    if (!user && !isAuthPage && !isApiRoute) {
+    if (!user && !isAuthPage && !isResetPasswordPage && !isApiRoute) {
       const loginUrl = request.nextUrl.clone();
       loginUrl.pathname = "/login";
       return NextResponse.redirect(loginUrl);

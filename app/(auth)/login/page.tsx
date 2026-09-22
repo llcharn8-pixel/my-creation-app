@@ -6,12 +6,17 @@ export default function LoginPage() {
     <div className="space-y-6">
       <h1 className="text-center text-2xl font-bold tracking-tight">Log in</h1>
       <LoginForm />
-      <p className="text-center text-sm text-neutral-500">
-        No account?{" "}
-        <Link href="/signup" className="text-neutral-900 hover:underline">
-          Sign up
+      <div className="flex items-center justify-between text-sm text-neutral-500">
+        <Link href="/forgot-password" className="hover:underline">
+          Forgot password?
         </Link>
-      </p>
+        <span>
+          No account?{" "}
+          <Link href="/signup" className="text-neutral-900 hover:underline">
+            Sign up
+          </Link>
+        </span>
+      </div>
     </div>
   );
 }
