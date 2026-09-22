@@ -33,12 +33,12 @@ export async function getContentPiece(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("content_pieces")
-    .select("*")
+    .select("*, topics(name)")
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw new Error(`Failed to load piece: ${error.message}`);
-  return data;
+  return data as unknown as ContentPiece | null;
 }
 
 export async function createContentPiece(

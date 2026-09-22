@@ -20,7 +20,11 @@ export function LibraryTable({ pieces }: { pieces: ContentPiece[] }) {
         <tbody>
           {pieces.map((piece) => (
             <tr key={piece.id} className="border-t border-neutral-200">
-              <td className="px-4 py-2 font-medium">{piece.title}</td>
+              <td className="px-4 py-2 font-medium">
+                <Link href={`/${piece.id}`} className="hover:underline">
+                  {piece.title}
+                </Link>
+              </td>
               <td className="px-4 py-2 text-neutral-600">
                 {piece.topics?.name ?? "—"}
               </td>

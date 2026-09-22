@@ -129,8 +129,9 @@ export async function updatePieceAction(
   }
 
   revalidatePath("/");
+  revalidatePath(`/${id}`);
   revalidatePath(`/${id}/edit`);
-  redirect("/");
+  redirect(`/${id}`);
 }
 
 export async function deletePieceAction(
@@ -146,6 +147,7 @@ export async function deletePieceAction(
     piece ? `Deleted "${piece.title}"` : null,
   );
   revalidatePath("/");
+  redirect("/");
 }
 
 export async function publishPieceAction(
@@ -159,6 +161,7 @@ export async function publishPieceAction(
   await logAudit("publish", "content_pieces", piece.id, null);
   await logActivity(id, "scored", `score=${piece.score}`);
   revalidatePath("/");
+  revalidatePath(`/${id}`);
 }
 
 export async function createTopicAction(

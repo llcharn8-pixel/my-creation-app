@@ -14,7 +14,7 @@ export function TopPieces({ pieces }: { pieces: ContentPiece[] }) {
           <li key={p.id} className="flex items-center justify-between text-sm">
             <span className="min-w-0 truncate">
               <span className="mr-2 font-semibold text-amber-700">#{i + 1}</span>
-              <Link href={`/${p.id}/edit`} className="hover:underline">
+              <Link href={`/${p.id}`} className="hover:underline">
                 {p.title}
               </Link>
             </span>
