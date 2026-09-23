@@ -64,7 +64,7 @@ export async function draftFieldsAction(input: {
   audience: string;
 }): Promise<DraftFieldsResult> {
   try {
-    const draft = draftContentFields(input);
+    const draft = await draftContentFields(input);
     return { ok: true, draft };
   } catch (err) {
     return {
