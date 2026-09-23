@@ -27,9 +27,17 @@ export async function getContentPieces(
   return (data ?? []) as unknown as ContentPiece[];
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function getContentPiece(
   id: string,
 ): Promise<ContentPiece | null> {
+  // Any non-UUID id (e.g. a browser requesting /favicon.ico, which falls
+  // through to this dynamic route when no static file matches) should be
+  // treated as "not found", not a database error.
+  if (!UUID_RE.test(id)) return null;
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("content_pieces")
