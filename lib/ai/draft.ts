@@ -24,30 +24,34 @@ function isEnabled(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Real model path (OpenRouter). Falls back to the heuristic generator below
-// if no key is configured, or the call fails/returns something unusable —
-// the app must keep working with AI switched off or misconfigured.
+// Real model path — calls Google's Gemini API directly (same approach as
+// this account's other apps), which has a genuine free tier. Falls back to
+// the heuristic generator below if no key is configured, or the call
+// fails/returns something unusable — the app must keep working with AI
+// switched off or misconfigured.
 // ---------------------------------------------------------------------------
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
+const DEFAULT_MODEL = "gemini-3.6-flash";
 
-function buildPrompt(input: DraftInput): string {
-  return `You are an expert direct-response copywriter specializing in breakthrough, transformation-driven content for creators and entrepreneurs.
+const SYSTEM_PROMPT = `You are an expert direct-response copywriter specializing in breakthrough, transformation-driven content for creators and entrepreneurs.
 
-Format: ${input.format}
+Return ONLY valid JSON matching this exact shape, nothing else — no prose, no markdown fences:
+{
+  "hook": { "value": "...", "confidence": 0.0 },
+  "body": { "value": "...", "confidence": 0.0 },
+  "cta": { "value": "...", "confidence": 0.0 }
+}
+
+Rules:
+- hook: an opening line, at most 25 words, that creates real tension or poses a sharp question. It must earn the next sentence. No generic filler or clichés.
+- body: names a concrete, specific before/after transformation grounded in the given breakthrough angle. Length should fit the given format (a post: a few tight paragraphs; a carousel: punchy, slide-sized chunks; a script: spoken, natural rhythm).
+- cta: one single, explicit action for the reader — not vague ("engage more"), a specific next step.
+- confidence is your own estimate (0 to 1) of how strong and publish-ready that field is.`;
+
+function buildUserPrompt(input: DraftInput): string {
+  return `Format: ${input.format}
 Audience: ${input.audience || "a general audience"}
-Breakthrough angle (the transformation this piece promises): ${input.breakthroughAngle}
-
-Write three pieces, at a genuinely expert level — specific, vivid, no generic filler or clichés:
-1. hook — an opening line, at most 25 words, that creates real tension or poses a sharp question. It must earn the next sentence.
-2. body — names a concrete, specific before/after transformation grounded in the breakthrough angle. Length should fit a ${input.format} (a post: a few tight paragraphs; a carousel: punchy, slide-sized chunks; a script: spoken, natural rhythm).
-3. cta — one single, explicit action for the reader. Not vague ("engage more") — a specific next step.
-
-For each, also give your own confidence (0 to 1) that it's strong, publish-ready copy.
-
-Respond with ONLY this JSON object, no markdown code fences, no commentary:
-{"hook":{"value":"...","confidence":0.0},"body":{"value":"...","confidence":0.0},"cta":{"value":"...","confidence":0.0}}`;
+Breakthrough angle (the transformation this piece promises): ${input.breakthroughAngle}`;
 }
 
 function clampConfidence(n: unknown): number {
@@ -56,32 +60,43 @@ function clampConfidence(n: unknown): number {
 }
 
 async function draftWithModel(input: DraftInput): Promise<DraftResult | null> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
+  const model = process.env.AI_DRAFT_MODEL || DEFAULT_MODEL;
+
   try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ role: "user", parts: [{ text: buildUserPrompt(input) }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            maxOutputTokens: 1024,
+            temperature: 0.8,
+          },
+        }),
       },
-      body: JSON.stringify({
-        model: process.env.AI_DRAFT_MODEL || DEFAULT_MODEL,
-        messages: [{ role: "user", content: buildPrompt(input) }],
-        temperature: 0.8,
-        max_tokens: 700,
-      }),
-    });
+    );
 
     if (!res.ok) {
-      console.error("OpenRouter draft request failed:", res.status, await res.text());
+      console.error("Gemini draft request failed:", res.status, await res.text());
       return null;
     }
 
     const data = await res.json();
-    const raw: string = data?.choices?.[0]?.message?.content ?? "";
-    const jsonText = raw.match(/\{[\s\S]*\}/)?.[0];
+    const text: string | undefined =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) return null;
+
+    const jsonText = text.match(/\{[\s\S]*\}/)?.[0];
     if (!jsonText) return null;
 
     const parsed = JSON.parse(jsonText);
@@ -111,7 +126,7 @@ async function draftWithModel(input: DraftInput): Promise<DraftResult | null> {
       },
     };
   } catch (err) {
-    console.error("OpenRouter draft error:", err);
+    console.error("Gemini draft error:", err);
     return null;
   }
 }
