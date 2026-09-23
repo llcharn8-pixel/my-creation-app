@@ -1,4 +1,5 @@
 import type { ContentFormat } from "@/lib/types";
+import { callGemini } from "@/lib/ai/gemini";
 
 export type DraftedField = {
   value: string;
@@ -66,34 +67,19 @@ async function draftWithModel(input: DraftInput): Promise<DraftResult | null> {
   const model = process.env.AI_DRAFT_MODEL || DEFAULT_MODEL;
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [{ role: "user", parts: [{ text: buildUserPrompt(input) }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            maxOutputTokens: 1024,
-            temperature: 0.8,
-          },
-        }),
+    const data = await callGemini(apiKey, model, {
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts: [{ text: buildUserPrompt(input) }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        maxOutputTokens: 1024,
+        temperature: 0.8,
       },
-    );
+    });
 
-    if (!res.ok) {
-      console.error("Gemini draft request failed:", res.status, await res.text());
-      return null;
-    }
-
-    const data = await res.json();
-    const text: string | undefined =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text: string | undefined = (
+      data as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
+    )?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) return null;
 
     const jsonText = text.match(/\{[\s\S]*\}/)?.[0];
