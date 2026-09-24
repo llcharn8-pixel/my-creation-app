@@ -43,11 +43,20 @@ Return ONLY valid JSON matching this exact shape, nothing else — no prose, no 
   "cta": { "value": "...", "confidence": 0.0 }
 }
 
-Rules:
-- hook: an opening line, at most 25 words, that creates real tension or poses a sharp question. It must earn the next sentence. No generic filler or clichés.
-- body: names a concrete, specific before/after transformation grounded in the given breakthrough angle. Length should fit the given format (a post: a few tight paragraphs; a carousel: punchy, slide-sized chunks; a script: spoken, natural rhythm).
-- cta: one single, explicit action for the reader — not vague ("engage more"), a specific next step.
-- confidence is your own estimate (0 to 1) of how strong and publish-ready that field is.`;
+Quality framework (follow it):
+- ATTENTION — hook: at most 25 words. Use a pattern interrupt, a contrarian claim, a specific number, or a curiosity gap. Speak directly to the reader ("you") or name the audience so the right people stop scrolling. It must earn the next sentence. No generic filler or clichés.
+- SPECIFICITY — prefer concrete numbers, named examples, and quoted lines over vague claims ("reclaim 10 hours a week", not "save time"). One idea only; write to one person.
+- TRANSFORMATION — body: show a concrete BEFORE state and AFTER state grounded in the given breakthrough angle, then bridge them. Sell the outcome and who the reader becomes, not the feature or process.
+- PROOF — include at least one credibility element: a number, a mini-example, or a short real-feeling scenario.
+- ACTION — cta: exactly one explicit, low-friction action with a timeframe or object ("Save this and rewrite your headline today"). Never vague ("engage more") and never two asks.
+- CRAFT — make it skimmable: short lines, white space, one thought per line or slide. Vary sentence length; cut any word that doesn't earn its place.
+
+Structure by format:
+- post: Problem → Agitate → Solution, or Before → After → Bridge. A few tight paragraphs separated by blank lines.
+- carousel: one idea per slide, labeled "Slide 1:", "Slide 2:", etc.; slide 1 is the hook-restating promise, a middle slide shows the before/after, the last slide lands the takeaway.
+- script: Hook → Story/Proof → Offer, written in natural spoken rhythm for the camera, with short sentences.
+
+confidence is your own honest estimate (0 to 1) of how strong and publish-ready that field is.`;
 
 function buildUserPrompt(input: DraftInput): string {
   return `Format: ${input.format}
@@ -72,7 +81,7 @@ async function draftWithModel(input: DraftInput): Promise<DraftResult | null> {
       contents: [{ role: "user", parts: [{ text: buildUserPrompt(input) }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
         temperature: 0.8,
       },
     });
