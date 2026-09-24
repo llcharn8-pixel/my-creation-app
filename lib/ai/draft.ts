@@ -1,5 +1,5 @@
 import type { ContentFormat } from "@/lib/types";
-import { callGemini } from "@/lib/ai/gemini";
+import { callGemini, GeminiError } from "@/lib/ai/gemini";
 
 export type DraftedField = {
   value: string;
@@ -36,6 +36,7 @@ function isEnabled(): boolean {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_MODEL = "gemini-3.6-flash";
+const FALLBACK_MODEL = "gemini-3.1-flash-lite";
 
 const SYSTEM_PROMPT = `You are an expert direct-response copywriter specializing in breakthrough, transformation-driven content for creators and entrepreneurs.
 
@@ -76,18 +77,38 @@ async function draftWithModel(input: DraftInput): Promise<DraftResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("no AI key is configured");
 
-  const model = process.env.AI_DRAFT_MODEL || DEFAULT_MODEL;
+  const primary = process.env.AI_DRAFT_MODEL || DEFAULT_MODEL;
+  const fallback = process.env.AI_DRAFT_FALLBACK_MODEL || FALLBACK_MODEL;
 
   try {
-    const data = await callGemini(apiKey, model, {
+    const request = {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: "user", parts: [{ text: buildUserPrompt(input) }] }],
       generationConfig: {
         responseMimeType: "application/json",
         maxOutputTokens: 2048,
-        temperature: 0.5,
+        temperature: 0.7,
       },
-    });
+    };
+
+    // Free-tier load and quota are tracked per model, so if the primary is
+    // overloaded or out of quota, a second model often still works.
+    let data: unknown;
+    try {
+      data = await callGemini(apiKey, primary, request);
+    } catch (err) {
+      if (!(err instanceof GeminiError) || primary === fallback) throw err;
+      console.error(`Primary model failed, trying ${fallback}:`, err.message);
+      try {
+        data = await callGemini(apiKey, fallback, request);
+      } catch (err2) {
+        throw new GeminiError(
+          `${err.message}; backup model also failed: ${
+            err2 instanceof Error ? err2.message : "unknown error"
+          }`,
+        );
+      }
+    }
 
     const text: string | undefined = (
       data as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
@@ -214,7 +235,7 @@ export async function draftContentFields(input: DraftInput): Promise<DraftResult
     const reason = err instanceof Error ? err.message : "unknown error";
     return {
       ...draftHeuristic(angle, input),
-      notice: `The AI model couldn't be used (${reason}), so this is a basic template. Try again in a minute; the free tier is limited to about 20 drafts a day.`,
+      notice: `The AI model couldn't be used (${reason}), so this is a basic template. Wait a minute and try again.`,
     };
   }
 }

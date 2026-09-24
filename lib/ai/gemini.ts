@@ -2,7 +2,7 @@ export class GeminiError extends Error {}
 
 const RETRYABLE_STATUSES = new Set([503, 429]);
 const MAX_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 1500;
+const RETRY_DELAY_MS = 1000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -53,8 +53,13 @@ export async function callGemini(
     await sleep(RETRY_DELAY_MS * attempt);
   }
 
-  if (RETRYABLE_STATUSES.has(lastStatus)) {
-    throw new GeminiError("The AI service is busy right now. Please try again in a minute.");
+  if (lastStatus === 429) {
+    throw new GeminiError(
+      `${model} hit its free-tier rate/daily limit (429)`,
+    );
+  }
+  if (lastStatus === 503) {
+    throw new GeminiError(`${model} is overloaded on Google's side (503)`);
   }
   throw new GeminiError(`AI request failed (${lastStatus}).`);
 }
