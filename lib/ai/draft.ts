@@ -12,6 +12,9 @@ export type DraftResult = {
   hook: DraftedField;
   body: DraftedField;
   cta: DraftedField;
+  // Set when the real model couldn't be used and a basic template was
+  // returned instead, so the UI can say so rather than failing silently.
+  notice?: string;
 };
 
 export type DraftInput = {
@@ -69,9 +72,9 @@ function clampConfidence(n: unknown): number {
   return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.85;
 }
 
-async function draftWithModel(input: DraftInput): Promise<DraftResult | null> {
+async function draftWithModel(input: DraftInput): Promise<DraftResult> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) throw new Error("no AI key is configured");
 
   const model = process.env.AI_DRAFT_MODEL || DEFAULT_MODEL;
 
@@ -89,16 +92,16 @@ async function draftWithModel(input: DraftInput): Promise<DraftResult | null> {
     const text: string | undefined = (
       data as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
     )?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return null;
+    if (!text) throw new Error("the AI returned an empty response");
 
     const jsonText = text.match(/\{[\s\S]*\}/)?.[0];
-    if (!jsonText) return null;
+    if (!jsonText) throw new Error("the AI returned an unreadable response");
 
     const parsed = JSON.parse(jsonText);
     const hook = String(parsed?.hook?.value ?? "").trim();
     const body = String(parsed?.body?.value ?? "").trim();
     const cta = String(parsed?.cta?.value ?? "").trim();
-    if (!hook || !body || !cta) return null;
+    if (!hook || !body || !cta) throw new Error("the AI response was incomplete");
 
     return {
       hook: {
@@ -122,7 +125,7 @@ async function draftWithModel(input: DraftInput): Promise<DraftResult | null> {
     };
   } catch (err) {
     console.error("Gemini draft error:", err);
-    return null;
+    throw err;
   }
 }
 
@@ -205,8 +208,13 @@ export async function draftContentFields(input: DraftInput): Promise<DraftResult
     throw new Error("Write a breakthrough angle first.");
   }
 
-  const modelResult = await draftWithModel({ ...input, breakthroughAngle: angle });
-  if (modelResult) return modelResult;
-
-  return draftHeuristic(angle, input);
+  try {
+    return await draftWithModel({ ...input, breakthroughAngle: angle });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "unknown error";
+    return {
+      ...draftHeuristic(angle, input),
+      notice: `The AI model couldn't be used (${reason}), so this is a basic template. Try again in a minute; the free tier is limited to about 20 drafts a day.`,
+    };
+  }
 }

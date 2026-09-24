@@ -40,6 +40,7 @@ export function StudioForm({
   const [state, formAction, pending] = useActionState(action, initialState);
   const [isDrafting, startDraft] = useTransition();
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
 
   const [format, setFormat] = useState<ContentFormat>(piece?.format ?? "post");
   const [audience, setAudience] = useState(piece?.audience ?? "");
@@ -100,6 +101,7 @@ export function StudioForm({
 
   function handleDraft() {
     setAiError(null);
+    setAiNotice(null);
     startDraft(async () => {
       const result = await draftFieldsAction({
         breakthroughAngle: angle,
@@ -110,6 +112,7 @@ export function StudioForm({
         setAiError(result.error);
         return;
       }
+      setAiNotice(result.draft.notice ?? null);
       setHook(result.draft.hook.value);
       setBody(result.draft.body.value);
       setCta(result.draft.cta.value);
@@ -272,6 +275,11 @@ export function StudioForm({
         {aiError && (
           <p role="alert" className="text-sm text-red-700">
             {aiError}
+          </p>
+        )}
+        {aiNotice && (
+          <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {aiNotice}
           </p>
         )}
 
