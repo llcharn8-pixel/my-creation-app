@@ -146,7 +146,7 @@ export function evaluateContent(piece: ScoreInput): Evaluation {
 
   // CTA / action (20)
   const ctaOk = !!cta && wordCount(cta) <= 20 && hasActionVerb(cta);
-  check(ctaOk, 14, "The CTA needs one explicit action verb (20 words or fewer).");
+  check(ctaOk, 14, "Keep the CTA to ONE explicit action in 20 words or fewer (avoid asking for two things).");
   check(ctaOk && /\b(today|tonight|this week|now|before|your|next)\b/i.test(cta), 6, 'Add a timeframe or object to the CTA ("today", "your…").');
 
   // Craft (10)
