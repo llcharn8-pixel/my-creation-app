@@ -17,41 +17,33 @@ const TENSION_WORDS = [
 ];
 
 const ACTION_VERBS = [
-  "try",
-  "click",
-  "reply",
-  "comment",
-  "tag",
-  "share",
-  "save",
-  "download",
-  "join",
-  "book",
-  "message",
-  "dm",
-  "subscribe",
-  "start",
-  "grab",
-  "send",
-  "audit",
-  "write",
-  "post",
-  "follow",
+  "try", "click", "reply", "comment", "tag", "share", "save", "download",
+  "join", "book", "message", "dm", "subscribe", "start", "grab", "send",
+  "audit", "write", "post", "follow", "practice", "cut", "stop", "notice",
+  "ask", "tell", "pick", "choose", "use", "take", "watch", "read", "pause",
+  "count", "give", "leave", "say", "drop", "swap", "replace", "rewrite",
+  "test", "schedule", "set", "make", "check", "list", "review", "remember",
+  "focus", "commit", "plan", "imagine", "pin", "bookmark", "screenshot",
+  "answer", "record", "open", "run", "aim",
 ];
 
 const OUTCOME_WORDS = [
-  "become",
-  "reclaim",
-  "without",
-  "result",
-  "finally",
-  "instead",
-  "escape",
-  "gain",
-  "save",
-  "double",
-  "triple",
+  "become", "became", "reclaim", "without", "result", "finally", "instead",
+  "escape", "gain", "save", "double", "triple", "shift", "confident",
+  "changed", "transform", "freedom", "calm", "clarity", "peer", "less",
+  "faster", "easier", "stronger", "closer", "lighter",
 ];
+
+// A "before" state (the problem or old way) and an "after" state (the
+// change or result) can be written many ways, not just the literal words
+// "before" and "after", so recognize the common natural phrasings.
+const BEFORE_RE =
+  /\b(before|used to|instead of|stuck|struggl\w*|anxiety|fear|wasted|exhausted|frustrat\w*|overwhelm\w*|problem|the old way|couldn't|never)\b/i;
+const AFTER_RE =
+  /\b(after|now|became|become|shifted|changed|finally|started|stopped|result|today|these days|from .{1,40} to)\b/i;
+
+const EXAMPLE_RE =
+  /\b(for example|for instance|e\.g\.|imagine|picture this|when i|i (used to|started|stopped|tried|tested|was|felt|found|learned|noticed))\b/i;
 
 const FORMAT_LENGTH_RANGES: Record<ContentFormat, [number, number]> = {
   post: [40, 150],
@@ -77,8 +69,12 @@ function hasTension(hook: string): boolean {
 }
 
 function hasBeforeAfter(body: string): boolean {
-  const lower = body.toLowerCase();
-  return lower.includes("before") && lower.includes("after");
+  return BEFORE_RE.test(body) && AFTER_RE.test(body);
+}
+
+function hasActionVerb(text: string): boolean {
+  const words = text.toLowerCase().match(/[a-z']+/g) ?? [];
+  return words.some((w) => ACTION_VERBS.includes(w));
 }
 
 function addressesReader(text: string, audience: string | null): boolean {
@@ -146,10 +142,10 @@ export function evaluateContent(piece: ScoreInput): Evaluation {
 
   // Proof / credibility (10)
   check(/\d+\s?(%|x|hours?|days?|weeks?|minutes?|k\b)/i.test(body), 6, 'Add proof with a result, like "10 hours" or "30%".');
-  check(/\b(for example|e\.g\.|result|case|when i|i (tried|tested))\b/i.test(body), 4, 'Add a mini-example ("for example…", "when I…").');
+  check(EXAMPLE_RE.test(body), 4, 'Add a mini-example ("for example…", "when I…").');
 
   // CTA / action (20)
-  const ctaOk = !!cta && wordCount(cta) <= 20 && includesAny(cta, ACTION_VERBS);
+  const ctaOk = !!cta && wordCount(cta) <= 20 && hasActionVerb(cta);
   check(ctaOk, 14, "The CTA needs one explicit action verb (20 words or fewer).");
   check(ctaOk && /\b(today|tonight|this week|now|before|your|next)\b/i.test(cta), 6, 'Add a timeframe or object to the CTA ("today", "your…").');
 
