@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import type { ActionResult } from "@/app/actions";
 import { draftFieldsAction } from "@/app/actions";
+import { ScoreMeter } from "@/components/score-meter";
 import type {
   ContentFormat,
   ContentPiece,
@@ -320,6 +321,15 @@ export function StudioForm({
           />
         </div>
       </div>
+
+      <ScoreMeter
+        hook={hook}
+        body={body}
+        cta={cta}
+        breakthrough_angle={angle}
+        audience={audience}
+        format={format}
+      />
 
       <div className="flex gap-3 pt-2">
         <button

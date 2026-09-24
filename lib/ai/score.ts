@@ -113,49 +113,56 @@ export type ScoreInput = {
 // Rule-based rubric (0-100) based on the standard content framework:
 // attention (hook) -> specificity -> transformation -> proof -> action (CTA)
 // -> craft (skimmability/format fit) -> audience.
-export function scoreContent(piece: ScoreInput): number {
+export type Evaluation = { score: number; hints: string[] };
+
+// Same rubric as scoreContent, but also reports what's missing so the
+// studio form can show a live score and tell the user how to improve it.
+export function evaluateContent(piece: ScoreInput): Evaluation {
   const hook = piece.hook ?? "";
   const body = piece.body ?? "";
   const cta = piece.cta ?? "";
   const angle = piece.breakthrough_angle ?? "";
   const audience = piece.audience?.trim() ?? "";
   let score = 0;
+  const hints: string[] = [];
+
+  const check = (ok: boolean, points: number, hint: string) => {
+    if (ok) score += points;
+    else hints.push(hint);
+  };
 
   // Hook / attention (20)
-  if (hook) {
-    if (wordCount(hook) <= 25) score += 6;
-    if (hasTension(hook)) score += 8;
-    if (addressesReader(hook, audience)) score += 6;
-  }
+  check(!!hook && wordCount(hook) <= 25, 6, hook ? "Shorten the hook to 25 words or fewer." : "Write a hook.");
+  check(!!hook && hasTension(hook), 8, "Give the hook tension: a question, a number, or a contrarian claim.");
+  check(!!hook && addressesReader(hook, audience), 6, 'Speak to the reader ("you") or name the audience in the hook.');
 
   // Specificity (15)
-  if (wordCount(angle) >= 8) score += 7;
-  if (hasNumber(hook + " " + body) || /["“”]/.test(body)) score += 8;
+  check(wordCount(angle) >= 8, 7, "Make the breakthrough angle more specific (8+ words).");
+  check(hasNumber(hook + " " + body) || /["“”]/.test(body), 8, "Add a concrete number or a quoted example.");
 
   // Transformation (20)
-  if (body) {
-    if (hasBeforeAfter(body)) score += 12;
-    if (includesAny(body, OUTCOME_WORDS)) score += 8;
-  }
+  check(!!body && hasBeforeAfter(body), 12, 'Show a clear "before" and "after" in the body.');
+  check(!!body && includesAny(body, OUTCOME_WORDS), 8, "Describe the outcome, or who the reader becomes.");
 
   // Proof / credibility (10)
-  if (/\d+\s?(%|x|hours?|days?|weeks?|minutes?|k\b)/i.test(body)) score += 6;
-  if (/\b(for example|e\.g\.|result|case|when i|i (tried|tested))\b/i.test(body))
-    score += 4;
+  check(/\d+\s?(%|x|hours?|days?|weeks?|minutes?|k\b)/i.test(body), 6, 'Add proof with a result, like "10 hours" or "30%".');
+  check(/\b(for example|e\.g\.|result|case|when i|i (tried|tested))\b/i.test(body), 4, 'Add a mini-example ("for example…", "when I…").');
 
   // CTA / action (20)
-  if (cta && wordCount(cta) <= 20 && includesAny(cta, ACTION_VERBS)) {
-    score += 14;
-    if (/\b(today|tonight|this week|now|before|your|next)\b/i.test(cta))
-      score += 6;
-  }
+  const ctaOk = !!cta && wordCount(cta) <= 20 && includesAny(cta, ACTION_VERBS);
+  check(ctaOk, 14, "The CTA needs one explicit action verb (20 words or fewer).");
+  check(ctaOk && /\b(today|tonight|this week|now|before|your|next)\b/i.test(cta), 6, 'Add a timeframe or object to the CTA ("today", "your…").');
 
   // Craft (10)
-  if (body && fitsFormatLength(body, piece.format)) score += 5;
-  if (body && isSkimmable(body)) score += 5;
+  check(!!body && fitsFormatLength(body, piece.format), 5, `The body length doesn't fit a ${piece.format}.`);
+  check(!!body && isSkimmable(body), 5, "Break the body into shorter lines or sentences.");
 
   // Audience named (5)
-  if (audience) score += 5;
+  check(!!audience, 5, "Name the audience.");
 
-  return Math.min(100, score);
+  return { score: Math.min(100, score), hints };
+}
+
+export function scoreContent(piece: ScoreInput): number {
+  return evaluateContent(piece).score;
 }

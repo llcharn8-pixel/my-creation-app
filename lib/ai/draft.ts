@@ -82,7 +82,7 @@ async function draftWithModel(input: DraftInput): Promise<DraftResult | null> {
       generationConfig: {
         responseMimeType: "application/json",
         maxOutputTokens: 2048,
-        temperature: 0.8,
+        temperature: 0.5,
       },
     });
 
