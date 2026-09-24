@@ -1,5 +1,6 @@
 import type { ContentFormat } from "@/lib/types";
 import { callGemini, GeminiError } from "@/lib/ai/gemini";
+import { evaluateContent } from "@/lib/ai/score";
 
 export type DraftedField = {
   value: string;
@@ -37,6 +38,8 @@ function isEnabled(): boolean {
 
 const DEFAULT_MODEL = "gemini-3.6-flash";
 const FALLBACK_MODEL = "gemini-3.1-flash-lite";
+// Drafts scoring below this get one revision pass using the rubric's hints.
+const REVISE_BELOW = 85;
 
 const SYSTEM_PROMPT = `You are an expert direct-response copywriter specializing in breakthrough, transformation-driven content for creators and entrepreneurs.
 
@@ -62,10 +65,27 @@ Structure by format:
 
 confidence is your own honest estimate (0 to 1) of how strong and publish-ready that field is.`;
 
-function buildUserPrompt(input: DraftInput): string {
-  return `Format: ${input.format}
+type Revision = { previous: DraftResult; hints: string[] };
+
+function buildUserPrompt(input: DraftInput, revision?: Revision): string {
+  const base = `Format: ${input.format}
 Audience: ${input.audience || "a general audience"}
 Breakthrough angle (the transformation this piece promises): ${input.breakthroughAngle}`;
+  if (!revision) return base;
+
+  return `${base}
+
+Here is a previous draft:
+${JSON.stringify({
+    hook: revision.previous.hook.value,
+    body: revision.previous.body.value,
+    cta: revision.previous.cta.value,
+  })}
+
+Revise it to fix exactly these weaknesses, keeping everything that already works:
+${revision.hints.map((h) => `- ${h}`).join("\n")}
+
+Return the full improved hook, body and cta in the same JSON shape.`;
 }
 
 function clampConfidence(n: unknown): number {
@@ -73,7 +93,10 @@ function clampConfidence(n: unknown): number {
   return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.85;
 }
 
-async function draftWithModel(input: DraftInput): Promise<DraftResult> {
+async function draftWithModel(
+  input: DraftInput,
+  revision?: Revision,
+): Promise<DraftResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("no AI key is configured");
 
@@ -83,7 +106,9 @@ async function draftWithModel(input: DraftInput): Promise<DraftResult> {
   try {
     const request = {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: "user", parts: [{ text: buildUserPrompt(input) }] }],
+      contents: [
+        { role: "user", parts: [{ text: buildUserPrompt(input, revision) }] },
+      ],
       generationConfig: {
         responseMimeType: "application/json",
         maxOutputTokens: 2048,
@@ -230,7 +255,35 @@ export async function draftContentFields(input: DraftInput): Promise<DraftResult
   }
 
   try {
-    return await draftWithModel({ ...input, breakthroughAngle: angle });
+    const modelInput = { ...input, breakthroughAngle: angle };
+    const first = await draftWithModel(modelInput);
+
+    // Check the draft against the same rubric the app scores with; if it's
+    // missing things, ask for one targeted revision and keep whichever
+    // version scores higher. A failed revision never loses the first draft.
+    const evaluate = (d: DraftResult) =>
+      evaluateContent({
+        hook: d.hook.value,
+        body: d.body.value,
+        cta: d.cta.value,
+        breakthrough_angle: angle,
+        audience: input.audience,
+        format: input.format,
+      });
+    const firstEval = evaluate(first);
+    if (firstEval.score >= REVISE_BELOW || firstEval.hints.length === 0) {
+      return first;
+    }
+    try {
+      const revised = await draftWithModel(modelInput, {
+        previous: first,
+        hints: firstEval.hints,
+      });
+      return evaluate(revised).score > firstEval.score ? revised : first;
+    } catch (revisionErr) {
+      console.error("Draft revision failed, keeping first draft:", revisionErr);
+      return first;
+    }
   } catch (err) {
     const reason = err instanceof Error ? err.message : "unknown error";
     return {
